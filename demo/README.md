@@ -35,16 +35,15 @@ Rebuild and re-upload when the UI changes.
 
 ## GitHub Pages (automatic)
 
-The repo includes `.github/workflows/deploy-demo.yml`.
+**One-time setup (required before the first deploy):**
 
-After pushing to GitHub:
+1. Open **Settings → Pages**:  
+   https://github.com/jennifershao11/AILA-Bench/settings/pages
+2. Under **Build and deployment**, set **Source** to **GitHub Actions**
+3. Save — this enables Pages for the repo
 
-1. Repo → **Settings** → **Pages**
-2. **Build and deployment** → Source: **GitHub Actions** (not “Deploy from a branch”)
-3. Push to `main` — workflow builds `demo/` and deploys
+Then push to `main` (or re-run the workflow from the Actions tab).
 
-If **build** succeeds but **deploy** fails, check that step 2 is set to GitHub Actions, then re-run the workflow from the Actions tab.
+Live URL: `https://jennifershao11.github.io/AILA-Bench/`
 
-Live URL: `https://<username>.github.io/<repo-name>/`
-
-If you rename the repo, no config change is needed — CI sets `VITE_BASE_PATH` from the repo name automatically.
+If **build** passes but **deploy** fails, Pages is almost always not enabled yet — repeat step 2 above.
