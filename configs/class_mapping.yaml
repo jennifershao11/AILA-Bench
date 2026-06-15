@@ -1,0 +1,26 @@
+bdd100k:
+  car: car
+  pedestrian: pedestrian
+  rider: rider
+  bus: bus
+  truck: truck
+  motorcycle: motorcycle
+  traffic light: traffic light
+  traffic sign: traffic sign
+
+nuimages:
+  vehicle.car: car
+  human.pedestrian.adult: pedestrian
+  human.pedestrian.child: pedestrian
+  human.pedestrian.construction_worker: pedestrian
+  human.pedestrian.personal_mobility: pedestrian
+  human.pedestrian.police_officer: pedestrian
+  human.pedestrian.stroller: pedestrian
+  human.pedestrian.wheelchair: pedestrian
+  vehicle.bicycle: rider
+  vehicle.motorcycle: motorcycle
+  vehicle.bus.bendy: bus
+  vehicle.bus.rigid: bus
+  vehicle.truck: truck
+  vehicle.trailer: truck
+  movable_object.trafficcone: traffic sign

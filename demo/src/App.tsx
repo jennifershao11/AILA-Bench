@@ -1,0 +1,1277 @@
+import { useState } from 'react';
+import {
+  AlertCircle,
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  Database,
+  Eye,
+  Target,
+  Timer,
+  Zap,
+} from 'lucide-react';
+import { cases, type AIErrorType, type CaseBox } from './data/cases';
+import { demoScene, classColor } from './data/demoScene';
+import { findings } from './data/findings';
+import {
+  rq1Data,
+  rq2Data,
+  rq3Data,
+  rq4Data,
+  rq5Data,
+  benchmarkStats,
+} from './data/results';
+
+type Condition = 'human_only' | 'ai_assisted' | 'ai_assisted_conf';
+type ActiveRQ = 'rq1' | 'rq2' | 'rq3' | 'rq4' | 'rq5';
+
+const COND = {
+  human_only: '#0f6c78',
+  ai_assisted: '#2f6fb0',
+  ai_assisted_conf: '#7e57a3',
+};
+const POS = '#0f6c78';
+const NEG = '#b23a48';
+
+// All metric numbers on the site are placeholders. While this is false, every
+// chart/table/figure renders "xxx" and neutral skeleton bars instead of values.
+// Once real results are entered (data files + prose), flip this to true.
+const SHOW_NUMBERS = false;
+const PH = 'xxx';
+const SKELETON = '#c9c4ba';
+
+// Renders **bold** spans inside plain strings so we can highlight key phrases.
+function RichText({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith('**') && part.endsWith('**') ? (
+          <strong key={i} className="font-semibold text-ink">
+            {part.slice(2, -2)}
+          </strong>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
+function SectionHeader({
+  eyebrow,
+  title,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="text-center max-w-2xl mx-auto mb-14">
+      <p className="eyebrow mb-3">{eyebrow}</p>
+      <h2 className="display text-3xl md:text-[2.6rem] leading-[1.1] mb-4">{title}</h2>
+      {children && <p className="text-muted text-lg leading-relaxed">{children}</p>}
+    </div>
+  );
+}
+
+function PlaceholderBanner() {
+  return (
+    <div className="bg-accent-tint text-accent text-center py-2 text-[13px] font-medium border-b border-line">
+      <AlertCircle className="inline w-3.5 h-3.5 mr-2 -mt-0.5" />
+      Illustrative numbers — figures shown are placeholders pending final results
+    </div>
+  );
+}
+
+function Navigation() {
+  const [isOpen, setIsOpen] = useState(false);
+  const navItems = [
+    { label: 'Overview', href: '#overview' },
+    { label: 'Metrics', href: '#metrics' },
+    { label: 'Demo', href: '#demo' },
+    { label: 'Cases', href: '#cases' },
+    { label: 'Results', href: '#results' },
+    { label: 'Resources', href: '#resources' },
+  ];
+
+  return (
+    <nav className="sticky top-0 z-40 bg-paper/70 backdrop-blur-xl border-b border-line">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <a href="#" className="flex items-center gap-2.5 group">
+            <span className="w-2.5 h-2.5 rounded-full bg-accent group-hover:scale-110 transition-transform" />
+            <span className="text-[17px] font-semibold tracking-tight text-ink">AILA-Bench</span>
+          </a>
+          <div className="hidden md:flex items-center gap-1">
+            {navItems.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="px-3.5 py-2 text-sm text-muted hover:text-ink transition-colors"
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="md:hidden inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"
+          >
+            Menu
+            <span className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}>▾</span>
+          </button>
+        </div>
+        {isOpen && (
+          <div className="md:hidden py-3 border-t border-line">
+            {navItems.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                onClick={() => setIsOpen(false)}
+                className="block px-2 py-2 text-sm text-muted hover:text-ink transition-colors"
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+}
+
+function Hero() {
+  const stats = [
+    { value: 'xxx', label: 'Annotators' },
+    { value: 'xxx', label: 'BDD100K images' },
+    { value: '3', label: 'Conditions' },
+    { value: '8', label: 'Object classes' },
+  ];
+  return (
+    <section className="relative overflow-hidden">
+      <div className="max-w-4xl mx-auto px-5 pt-20 pb-16 md:pt-28 md:pb-20 text-center">
+        <p className="eyebrow mb-5">The AI-in-the-Loop Annotation Benchmark</p>
+        <h1 className="display text-5xl md:text-7xl leading-[1.02] mb-6">AILA-Bench</h1>
+        <p className="font-serif text-xl md:text-2xl text-ink/85 leading-snug max-w-3xl mx-auto mb-6">
+          Can Model-in-the-Loop Annotation Be Safely Scaled? Auditing Suggestion-Conditioned
+          Label Noise in Human–AI Data Pipelines
+        </p>
+        <div className="flex items-center justify-center gap-3 mb-8 text-sm">
+          <span className="text-muted">Anonymous Authors</span>
+          <span className="w-1 h-1 rounded-full bg-muted/50" />
+          <span className="inline-flex items-center rounded-full border border-line bg-white/60 px-3 py-1 text-muted">
+            Submission under review
+          </span>
+        </div>
+        <p className="text-muted text-lg leading-relaxed max-w-2xl mx-auto mb-10">
+          A benchmark for studying how annotators interact with AI suggestions in 2D object
+          detection — <strong className="font-semibold text-ink">when they accept the wrong
+          ones</strong>, and how to audit the resulting{' '}
+          <strong className="font-semibold text-ink">Suggestion-Conditioned Label Noise (SCLN)</strong>.
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <a
+            href="#demo"
+            className="inline-flex items-center gap-2 rounded-full btn-accent text-white px-6 py-3 text-sm font-medium shadow-card hover:-translate-y-0.5 hover:shadow-lift transition-all"
+          >
+            <Eye className="w-4 h-4" /> Explore the demo
+          </a>
+          <a
+            href="#cases"
+            className="inline-flex items-center gap-2 rounded-full border border-line bg-white/70 text-ink px-6 py-3 text-sm font-medium hover:bg-white transition-all"
+          >
+            Browse cases <ArrowRight className="w-4 h-4" />
+          </a>
+          <a
+            href="#results"
+            className="inline-flex items-center gap-2 rounded-full border border-line bg-white/70 text-ink px-6 py-3 text-sm font-medium hover:bg-white transition-all"
+          >
+            See results
+          </a>
+        </div>
+
+        <div className="mt-16 flex flex-wrap items-stretch justify-center divide-x divide-line">
+          {stats.map((s) => (
+            <div key={s.label} className="px-7 py-2 min-w-[8rem]">
+              <p className="font-serif text-3xl text-ink leading-none mb-1.5">{s.value}</p>
+              <p className="text-xs uppercase tracking-wide text-muted">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function OverviewSection() {
+  const insightIcons: Record<string, React.ReactNode> = {
+    'speed-accuracy': <Timer className="w-5 h-5" />,
+    confidence: <Zap className="w-5 h-5" />,
+    'wrong-low': <AlertCircle className="w-5 h-5" />,
+    'wrong-high': <AlertCircle className="w-5 h-5" />,
+    'scln-random': <Target className="w-5 h-5" />,
+    auprc: <BarChart3 className="w-5 h-5" />,
+    'cross-dataset': <Database className="w-5 h-5" />,
+  };
+  const keyInsights = findings.map((f) => ({
+    icon: insightIcons[f.id] ?? <Target className="w-5 h-5" />,
+    title: f.title,
+    value: f.value,
+    desc: f.description,
+  }));
+
+  return (
+    <section id="overview" className="py-24 scroll-mt-20">
+      <div className="max-w-6xl mx-auto px-5">
+        <SectionHeader eyebrow="Overview" title="What AILA-Bench measures">
+          Headline findings from a controlled study of model-in-the-loop annotation, where the
+          same images are labelled{' '}
+          <strong className="font-semibold text-ink">with and without AI assistance</strong>.
+        </SectionHeader>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          {keyInsights.map((insight) => (
+            <div key={insight.title} className="card p-6">
+              <div className="inline-flex p-2.5 rounded-full bg-accent-tint text-accent mb-4">
+                {insight.icon}
+              </div>
+              <p className="font-serif text-3xl text-ink leading-none mb-2">{insight.value}</p>
+              <h4 className="text-sm font-semibold text-ink mb-1.5">{insight.title}</h4>
+              <p className="text-sm text-muted leading-relaxed">
+                <RichText text={insight.desc} />
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-5">
+          <div className="card p-7">
+            <h3 className="font-serif text-xl text-ink mb-5">Experimental conditions</h3>
+            <ul className="space-y-4">
+              {[
+                {
+                  c: COND.human_only,
+                  t: 'Human Only',
+                  d: 'Annotators work from scratch, with no AI assistance.',
+                },
+                {
+                  c: COND.ai_assisted,
+                  t: 'AI-Assisted',
+                  d: 'AI provides suggestions; no confidence is shown.',
+                },
+                {
+                  c: COND.ai_assisted_conf,
+                  t: 'AI-Assisted + Confidence',
+                  d: 'AI suggestions are shown together with confidence scores.',
+                },
+              ].map((row) => (
+                <li key={row.t} className="flex items-start gap-3">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0"
+                    style={{ backgroundColor: row.c }}
+                  />
+                  <div>
+                    <span className="text-ink font-medium">{row.t}</span>
+                    <p className="text-sm text-muted">{row.d}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="card p-7">
+            <h3 className="font-serif text-xl text-ink mb-5">Recorded interaction traces</h3>
+            <p className="text-sm text-muted mb-4">
+              Every annotation event is logged, enabling counterfactual analysis of how AI
+              suggestions shaped the final label.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {benchmarkStats.traceFields.map((field) => (
+                <span
+                  key={field}
+                  className="px-3 py-1.5 rounded-full bg-white/70 border border-line text-[13px] text-ink/80 font-mono"
+                >
+                  {field}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function EvaluationFramework() {
+  const fderModes = [
+    { key: 'FDER-box', desc: 'Bounding-box localization errors' },
+    { key: 'FDER-class', desc: 'Wrong object class assigned' },
+    { key: 'FDER-miss', desc: 'Objects missed in final labels' },
+    { key: 'FDER-fp', desc: 'False-positive detections kept' },
+    { key: 'FDER-dup', desc: 'Duplicate boxes on the same object' },
+  ];
+
+  return (
+    <section id="metrics" className="py-24 scroll-mt-20 bg-white/45 border-y border-line">
+      <div className="max-w-6xl mx-auto px-5">
+        <SectionHeader eyebrow="Evaluation framework" title="What we measure">
+          AILA-Bench separates the <strong className="font-semibold text-ink">noise
+          phenomenon</strong>, how we <strong className="font-semibold text-ink">score final
+          annotation quality</strong>, and how we <strong className="font-semibold text-ink">prioritize
+          labels for audit</strong> under a limited review budget.
+        </SectionHeader>
+
+        <div className="grid md:grid-cols-3 gap-5">
+          {/* 1 — Phenomenon */}
+          <div className="card p-6">
+            <p className="text-xs uppercase tracking-wide text-muted mb-2">1 · Phenomenon</p>
+            <h3 className="font-serif text-xl text-ink mb-3">SCLN</h3>
+            <p className="text-sm text-muted leading-relaxed mb-4">
+              <strong className="font-semibold text-ink">Suggestion-Conditioned Label Noise</strong>{' '}
+              is error introduced when a human label is shaped by an AI suggestion — not independent
+              human mistakes, and not model error alone.
+            </p>
+            <p className="text-sm text-muted leading-relaxed">
+              The case gallery shows where YOLO11 diverges from ground truth; FDER and SCLNScore
+              quantify how that divergence ends up in final labels.
+            </p>
+          </div>
+
+          {/* 2 — Quality */}
+          <div className="card p-6">
+            <p className="text-xs uppercase tracking-wide text-muted mb-2">2 · Quality</p>
+            <h3 className="font-serif text-xl text-ink mb-3">FDER</h3>
+            <p className="text-sm text-muted leading-relaxed mb-4">
+              <strong className="font-semibold text-ink">Final Detection Error Rate</strong> breaks
+              annotation quality into five error modes, compared across the three experimental
+              conditions.
+            </p>
+            <ul className="space-y-2">
+              {fderModes.map((m) => (
+                <li key={m.key} className="flex items-start gap-2 text-sm">
+                  <span className="font-mono text-[11px] text-accent shrink-0 mt-0.5">{m.key}</span>
+                  <span className="text-muted">{m.desc}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* 3 — Audit */}
+          <div className="card p-6">
+            <p className="text-xs uppercase tracking-wide text-muted mb-2">3 · Audit</p>
+            <h3 className="font-serif text-xl text-ink mb-3">SCLNScore</h3>
+            <p className="text-sm text-muted leading-relaxed mb-4">
+              A risk score for ranking which labels to re-review when audit budget is limited.
+            </p>
+            <div className="card sheen-indigo p-4 mb-4 border-l-4 border-l-accent">
+              <p className="font-serif text-base text-ink italic leading-snug">
+                “Would this annotation be correct if the human had worked alone?”
+              </p>
+            </div>
+            <div className="card sheen-metal p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted mb-2">Formula</p>
+              <div className="font-mono text-xs leading-relaxed">
+                <span className="text-accent">SCLNScore</span>
+                <span className="text-muted"> = </span>
+                <span className="text-teal">p₁</span>
+                <span className="text-muted">(error | AI, trace)</span>
+                <span className="text-muted"> − </span>
+                <span className="text-ink">p₀</span>
+                <span className="text-muted">(error | human-only)</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted mt-3 leading-relaxed">
+              High scores flag labels the AI suggestion likely pushed into error.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DemoViewer() {
+  const [condition, setCondition] = useState<Condition>('human_only');
+  const { width: W, height: H, boxes } = demoScene;
+  const conditions = [
+    { id: 'human_only' as const, label: 'Human Only' },
+    { id: 'ai_assisted' as const, label: 'AI-Assisted' },
+    { id: 'ai_assisted_conf' as const, label: 'AI + Confidence' },
+  ];
+
+  return (
+    <section id="demo" className="py-24 scroll-mt-20">
+      <div className="max-w-6xl mx-auto px-5">
+        <SectionHeader eyebrow="Interactive demo" title="One frame, three conditions">
+          The same BDD100K frame under each annotation condition. Boxes and confidences are the
+          real YOLO11 pre-annotations for this image.
+        </SectionHeader>
+
+        <div className="card p-6 md:p-8">
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex items-center gap-1 rounded-full border border-line bg-white/70 p-1">
+              {conditions.map((cond) => {
+                const active = condition === cond.id;
+                return (
+                  <button
+                    key={cond.id}
+                    onClick={() => setCondition(cond.id)}
+                    className="px-4 py-2 rounded-full text-sm font-medium transition-all"
+                    style={
+                      active
+                        ? { backgroundColor: COND[cond.id], color: '#fff' }
+                        : { color: '#5f6774' }
+                    }
+                  >
+                    {cond.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="relative aspect-video rounded-xl overflow-hidden ring-1 ring-line shadow-card mb-6">
+            <img
+              src={demoScene.imagePath}
+              alt="BDD100K street scene"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            {condition === 'human_only' && (
+              <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full bg-white/90 text-ink text-xs font-medium shadow-card">
+                Empty canvas — annotator draws every box from scratch
+              </div>
+            )}
+            {condition !== 'human_only' &&
+              boxes.map((box) => {
+                const [x, y, w, h] = box.bbox;
+                const color = classColor(box.category);
+                return (
+                  <div
+                    key={box.id}
+                    className="absolute border-2 rounded-sm"
+                    style={{
+                      left: `${(x / W) * 100}%`,
+                      top: `${(y / H) * 100}%`,
+                      width: `${(w / W) * 100}%`,
+                      height: `${(h / H) * 100}%`,
+                      borderColor: color,
+                    }}
+                  >
+                    <div
+                      className="absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[11px] font-medium text-white whitespace-nowrap"
+                      style={{ backgroundColor: color }}
+                    >
+                      {box.category}
+                      {condition === 'ai_assisted_conf' && (
+                        <span className="ml-1 opacity-80">{Math.round(box.confidence * 100)}%</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4">
+            {[
+              {
+                id: 'human_only' as const,
+                t: 'Human Only',
+                d: 'No AI suggestions shown. The annotator draws everything.',
+              },
+              {
+                id: 'ai_assisted' as const,
+                t: 'AI-Assisted',
+                d: 'AI provides suggestions. The annotator can accept, edit, or reject.',
+              },
+              {
+                id: 'ai_assisted_conf' as const,
+                t: 'AI + Confidence',
+                d: 'Suggestions include confidence scores, shown as a percentage.',
+              },
+            ].map((card) => {
+              const active = condition === card.id;
+              return (
+                <div
+                  key={card.id}
+                  className="rounded-xl p-5 border transition-all"
+                  style={{
+                    borderColor: active ? COND[card.id] : 'rgba(22,33,50,0.12)',
+                    backgroundColor: active ? `${COND[card.id]}14` : 'rgba(255,255,255,0.6)',
+                  }}
+                >
+                  <h4 className="font-medium text-ink mb-1">{card.t}</h4>
+                  <p className="text-sm text-muted leading-relaxed">{card.d}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-center text-xs text-muted mt-6">
+            Frame {demoScene.externalId} · {demoScene.source} · {demoScene.model} suggestions
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const GT_COLOR = '#15803d';
+
+function CaseFrame({
+  imagePath,
+  width,
+  height,
+  boxes,
+  className,
+}: {
+  imagePath: string;
+  width: number;
+  height: number;
+  boxes: {
+    bbox: [number, number, number, number];
+    color: string;
+    label?: string;
+    zIndex?: number;
+    labelPosition?: 'top' | 'bottom';
+  }[];
+  className?: string;
+}) {
+  return (
+    <div className={`relative overflow-visible rounded-lg bg-ink/5 ring-1 ring-line ${className ?? ''}`}>
+      <img
+        src={imagePath}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover rounded-lg"
+      />
+      {boxes.map((b, i) => {
+        const [x, y, w, h] = b.bbox;
+        const labelAbove = b.labelPosition !== 'bottom';
+        return (
+          <div
+            key={i}
+            className="absolute border-2 rounded-sm overflow-visible"
+            style={{
+              left: `${(x / width) * 100}%`,
+              top: `${(y / height) * 100}%`,
+              width: `${(w / width) * 100}%`,
+              height: `${(h / height) * 100}%`,
+              borderColor: b.color,
+              zIndex: b.zIndex ?? 10,
+            }}
+          >
+            {b.label && (
+              <span
+                className={`absolute left-0 px-1 py-0.5 text-[10px] font-medium text-white whitespace-nowrap ${
+                  labelAbove
+                    ? 'bottom-full rounded-tl rounded-tr'
+                    : 'top-full rounded-bl rounded-br'
+                }`}
+                style={{ backgroundColor: b.color }}
+              >
+                {b.label}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Focus boxes (GT + AI) for a case. AI drawn first, GT on top. Labels staggered: GT above, AI below.
+function focusBoxes(
+  c: { focus: { gt: CaseBox | null; ai: CaseBox | null } },
+  withLabels = true,
+): {
+  bbox: [number, number, number, number];
+  color: string;
+  label?: string;
+  zIndex: number;
+  labelPosition: 'top' | 'bottom';
+}[] {
+  const out: {
+    bbox: [number, number, number, number];
+    color: string;
+    label?: string;
+    zIndex: number;
+    labelPosition: 'top' | 'bottom';
+  }[] = [];
+  if (c.focus.ai) {
+    const conf = c.focus.ai.confidence;
+    const pct = conf != null ? ` ${Math.round(conf * 100)}%` : '';
+    out.push({
+      bbox: c.focus.ai.bbox,
+      color: COND.ai_assisted,
+      label: withLabels ? `AI: ${c.focus.ai.class}${pct}` : 'AI',
+      zIndex: 10,
+      labelPosition: 'bottom',
+    });
+  }
+  if (c.focus.gt) {
+    out.push({
+      bbox: c.focus.gt.bbox,
+      color: GT_COLOR,
+      label: withLabels ? `GT: ${c.focus.gt.class}` : 'GT',
+      zIndex: 20,
+      labelPosition: 'top',
+    });
+  }
+  return out;
+}
+
+function CaseGallery() {
+  const [selectedCase, setSelectedCase] = useState<string>(cases[0].id);
+  const errorLabels: Record<AIErrorType, string> = {
+    class: 'Class confusion',
+    localization: 'Localization',
+    hallucination: 'Hallucination',
+    missing: 'Missing object',
+    duplicate: 'Duplicate',
+    wrong_object: 'Wrong object',
+    correct: 'Correct',
+  };
+  const errorColors: Record<AIErrorType, string> = {
+    class: 'bg-rose-50 text-rose-700 border-rose-200',
+    localization: 'bg-amber-50 text-amber-700 border-amber-200',
+    hallucination: 'bg-violet-50 text-violet-700 border-violet-200',
+    missing: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+    duplicate: 'bg-pink-50 text-pink-700 border-pink-200',
+    wrong_object: 'bg-orange-50 text-orange-700 border-orange-200',
+    correct: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  };
+
+  const c = cases.find((x) => x.id === selectedCase) ?? cases[0];
+  const gt = c.focus.gt;
+  const ai = c.focus.ai;
+
+  return (
+    <section id="cases" className="py-24 scroll-mt-20 bg-white/45 border-y border-line">
+      <div className="max-w-7xl mx-auto px-5">
+        <SectionHeader eyebrow="Case gallery" title="Anatomy of suggestion-conditioned errors">
+          Real BDD100K frames with their{' '}
+          <strong className="font-semibold text-ink">ground-truth and YOLO11 boxes</strong>. Pick a
+          case on the left; the{' '}
+          <strong className="font-semibold text-ink">human decision is what the benchmark
+          measures</strong> and is not yet collected.
+        </SectionHeader>
+
+        <div className="grid lg:grid-cols-3 gap-6 items-start">
+          {/* Detail panel */}
+          <div className="lg:col-span-2 lg:order-2 card p-6 md:p-7">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <h3 className="font-serif text-2xl text-ink">{c.title}</h3>
+              <span
+                className={`shrink-0 px-2.5 py-1 rounded-full text-xs border ${errorColors[c.errorType]}`}
+              >
+                {errorLabels[c.errorType]}
+              </span>
+            </div>
+            <p className="text-muted mb-5 leading-relaxed">{c.description}</p>
+
+            <CaseFrame
+              imagePath={c.imagePath}
+              width={c.width}
+              height={c.height}
+              boxes={focusBoxes(c)}
+              className="aspect-video"
+            />
+            {!gt && ai && (
+              <p className="text-xs text-muted mt-2 leading-relaxed">
+                <strong className="font-semibold text-ink">No ground-truth box</strong> for this
+                object — YOLO11 proposed a detection where none exists (hallucination).
+              </p>
+            )}
+            {gt && !ai && (
+              <p className="text-xs text-muted mt-2 leading-relaxed">
+                <strong className="font-semibold text-ink">No AI box</strong> — this ground-truth
+                object was missed by YOLO11 (missing detection).
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-4 mt-3 mb-5 text-xs">
+              {gt && (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: GT_COLOR }} />
+                  <span className="text-muted">Ground truth</span>
+                </span>
+              )}
+              {ai && (
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="w-3 h-3 rounded-sm"
+                    style={{ backgroundColor: COND.ai_assisted }}
+                  />
+                  <span className="text-muted">AI suggestion</span>
+                </span>
+              )}
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="rounded-xl bg-white/70 border border-line p-4">
+                <p className="text-xs uppercase tracking-wide text-muted mb-3">
+                  Model vs. ground truth <span className="text-teal">· real</span>
+                </p>
+                <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
+                  <div>
+                    <span className="text-muted">AI class</span>{' '}
+                    <span className="text-ink">{ai ? ai.class : 'none'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted">AI conf.</span>{' '}
+                    <span className="text-ink font-mono">
+                      {ai?.confidence != null ? `${Math.round(ai.confidence * 100)}%` : '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted">GT class</span>{' '}
+                    <span className="text-ink">{gt ? gt.class : 'none'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted">GT–AI IoU</span>{' '}
+                    <span className="text-ink font-mono">
+                      {gt && ai ? c.focus.iou.toFixed(2) : '—'}
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-2.5 text-[11px] text-muted/80">
+                  Frame {c.externalId} · BDD100K · YOLO11
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-white/70 border border-line p-4">
+                <p className="text-xs uppercase tracking-wide text-muted mb-3">
+                  Human review <span className="text-muted/60">· pending</span>
+                </p>
+                <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
+                  <div>
+                    <span className="text-muted">Decision</span> <span className="text-ink">{PH}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted">Review</span>{' '}
+                    <span className="text-ink font-mono">{PH}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted">Edit dist.</span>{' '}
+                    <span className="text-ink font-mono">{PH}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted">Final box</span> <span className="text-ink">{PH}</span>
+                  </div>
+                </div>
+                <p className="mt-3 text-[11px] leading-relaxed text-muted/90">
+                  Traces <strong className="font-semibold">not yet collected</strong> — pending real
+                  AI-assisted annotation.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Case list */}
+          <div className="space-y-3 lg:order-1">
+            {cases.map((item) => {
+              const selected = item.id === selectedCase;
+              const conf = item.focus.ai?.confidence;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setSelectedCase(item.id)}
+                  className={`w-full text-left card p-3 flex gap-3 items-center transition-all hover:-translate-y-0.5 hover:shadow-lift ${
+                    selected ? 'ring-2 ring-accent' : ''
+                  }`}
+                >
+                  <CaseFrame
+                    imagePath={item.imagePath}
+                    width={item.width}
+                    height={item.height}
+                    boxes={focusBoxes(item, false)}
+                    className="w-28 shrink-0 aspect-video"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-medium text-ink text-sm leading-snug mb-1.5 truncate">
+                      {item.title}
+                    </h4>
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-[11px] border ${errorColors[item.errorType]}`}
+                    >
+                      {errorLabels[item.errorType]}
+                    </span>
+                    <p className="text-[11px] text-muted/70 mt-1.5 font-mono">
+                      {conf != null ? `AI ${Math.round(conf * 100)}%` : 'no AI box'} · human pending
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-muted mt-8 max-w-2xl mx-auto">
+          Images, ground-truth and YOLO11 boxes are{' '}
+          <strong className="font-semibold text-ink">real BDD100K data</strong>. The{' '}
+          <strong className="font-semibold text-ink">human decision and interaction metrics</strong>{' '}
+          await real AI-assisted annotation and are shown as placeholders.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function ResultsExplorer() {
+  const [activeRQ, setActiveRQ] = useState<ActiveRQ>('rq1');
+  const rqTabs: { id: ActiveRQ; title: string; question: string }[] = [
+    { id: 'rq1', title: 'RQ1', question: 'Error modes' },
+    { id: 'rq2', title: 'RQ2', question: 'Confidence' },
+    { id: 'rq3', title: 'RQ3', question: 'Detection' },
+    { id: 'rq4', title: 'RQ4', question: 'Ablation' },
+    { id: 'rq5', title: 'RQ5', question: 'Transfer' },
+  ];
+
+  return (
+    <section id="results" className="py-24 scroll-mt-20">
+      <div className="max-w-6xl mx-auto px-5">
+        <SectionHeader eyebrow="Results" title="Five research questions">
+          Benchmark results across the five questions that frame the study. All metrics shown are
+          placeholder values.
+        </SectionHeader>
+
+        <div className="flex flex-wrap gap-2 mb-8 justify-center">
+          {rqTabs.map((tab) => {
+            const active = activeRQ === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveRQ(tab.id)}
+                className={`px-4 py-2.5 rounded-full text-sm transition-all border ${
+                  active
+                    ? 'bg-ink text-paper border-ink'
+                    : 'bg-white/70 text-muted border-line hover:text-ink'
+                }`}
+              >
+                <span className="font-semibold">{tab.title}</span>
+                <span className="mx-1.5 opacity-40">·</span>
+                <span className="opacity-80">{tab.question}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="card p-6 md:p-8">
+          {activeRQ === 'rq1' && <RQ1Panel />}
+          {activeRQ === 'rq2' && <RQ2Panel />}
+          {activeRQ === 'rq3' && <RQ3Panel />}
+          {activeRQ === 'rq4' && <RQ4Panel />}
+          {activeRQ === 'rq5' && <RQ5Panel />}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Answer({ text, color }: { text: string; color: string }) {
+  return (
+    <div
+      className="mt-7 p-4 rounded-xl bg-white/70 sheen-metal border border-line border-l-4"
+      style={{ borderLeftColor: color }}
+    >
+      <p className="text-muted leading-relaxed">
+        <RichText text={text} />
+      </p>
+    </div>
+  );
+}
+
+function PanelHeading({ title, question }: { title: string; question: string }) {
+  return (
+    <div className="mb-7">
+      <h3 className="font-serif text-2xl text-ink mb-1.5">{title}</h3>
+      <p className="text-muted">{question}</p>
+    </div>
+  );
+}
+
+function BarChart({
+  data,
+  labels,
+  maxValue,
+  suffix = '',
+}: {
+  data: { label: string; values: number[]; color: string }[];
+  labels: string[];
+  maxValue: number;
+  suffix?: string;
+}) {
+  return (
+    <div className="space-y-4">
+      {labels.map((label, i) => (
+        <div key={label}>
+          <span className="text-sm text-muted">{label}</span>
+          <div className="flex gap-1.5 mt-1.5">
+            {data.map((series) => (
+              <div
+                key={series.label}
+                className="h-6 rounded-full flex items-center justify-end pr-2.5 text-xs font-medium"
+                style={
+                  SHOW_NUMBERS
+                    ? {
+                        width: `${Math.max((series.values[i] / maxValue) * 100, series.values[i] > 0 ? 9 : 0)}%`,
+                        backgroundColor: series.color,
+                        color: '#fff',
+                      }
+                    : { width: '40%', backgroundColor: SKELETON, color: '#46505f' }
+                }
+              >
+                {SHOW_NUMBERS ? `${series.values[i]}${suffix}` : PH}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-4 pt-2">
+        {data.map((series) => (
+          <div key={series.label} className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: series.color }} />
+            <span className="text-xs text-muted">{series.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MeterRow({
+  label,
+  display,
+  pct,
+  color,
+}: {
+  label: string;
+  display: string;
+  pct: number;
+  color: string;
+}) {
+  return (
+    <div>
+      <div className="flex justify-between text-sm mb-1.5">
+        <span className="text-muted">{label}</span>
+        <span className="text-ink font-medium">{SHOW_NUMBERS ? display : PH}</span>
+      </div>
+      <div className="h-3.5 rounded-full bg-ink/[0.06] overflow-hidden">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: SHOW_NUMBERS ? `${pct}%` : '42%',
+            backgroundColor: SHOW_NUMBERS ? color : SKELETON,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function RQ1Panel() {
+  return (
+    <div>
+      <PanelHeading title={rq1Data.title} question={rq1Data.question} />
+      <h4 className="text-xs uppercase tracking-wide text-muted mb-4">
+        Final detection error rate by condition (%)
+      </h4>
+      <BarChart
+        data={[
+          { label: 'Human-only', values: rq1Data.fderByCondition.humanOnly, color: COND.human_only },
+          { label: 'AI-assisted', values: rq1Data.fderByCondition.aiAssisted, color: COND.ai_assisted },
+          {
+            label: 'AI + Confidence',
+            values: rq1Data.fderByCondition.aiAssistedConf,
+            color: COND.ai_assisted_conf,
+          },
+        ]}
+        labels={rq1Data.fderByCondition.labels}
+        maxValue={15}
+      />
+      <Answer color={POS} text={rq1Data.answer} />
+    </div>
+  );
+}
+
+function RQ2Panel() {
+  return (
+    <div>
+      <PanelHeading title={rq2Data.title} question={rq2Data.question} />
+      <div className="grid md:grid-cols-2 gap-10">
+        <div>
+          <h4 className="text-xs uppercase tracking-wide text-muted mb-4">
+            Acceptance rate by AI confidence
+          </h4>
+          <BarChart
+            data={[
+              {
+                label: 'Correct',
+                values: rq2Data.acceptanceByConfidence.correctAcceptance,
+                color: POS,
+              },
+              {
+                label: 'Wrong',
+                values: rq2Data.acceptanceByConfidence.wrongAcceptance,
+                color: NEG,
+              },
+            ]}
+            labels={rq2Data.acceptanceByConfidence.labels}
+            maxValue={100}
+          />
+        </div>
+        <div>
+          <h4 className="text-xs uppercase tracking-wide text-muted mb-4">
+            Self-reported confidence (1–7)
+          </h4>
+          <div className="space-y-4">
+            {[
+              { label: 'Human Only', value: rq2Data.selfReportedConfidence.humanOnly, color: COND.human_only },
+              { label: 'AI-Assisted', value: rq2Data.selfReportedConfidence.aiAssisted, color: COND.ai_assisted },
+              {
+                label: 'AI-Assisted + Conf',
+                value: rq2Data.selfReportedConfidence.aiAssistedWithConf,
+                color: COND.ai_assisted_conf,
+              },
+            ].map((item) => (
+              <MeterRow
+                key={item.label}
+                label={item.label}
+                display={item.value.toString()}
+                pct={(item.value / 7) * 100}
+                color={item.color}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+      <Answer color={COND.ai_assisted_conf} text={rq2Data.answer} />
+    </div>
+  );
+}
+
+function RQ3Panel() {
+  return (
+    <div>
+      <PanelHeading title={rq3Data.title} question={rq3Data.question} />
+      <div className="overflow-x-auto -mx-2">
+        <table className="w-full text-sm min-w-[34rem]">
+          <thead>
+            <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">
+              <th className="text-left py-3 px-3 font-medium">Policy</th>
+              <th className="text-right py-3 px-3 font-medium">AUPRC</th>
+              <th className="text-right py-3 px-3 font-medium">R@1%</th>
+              <th className="text-right py-3 px-3 font-medium">R@5%</th>
+              <th className="text-right py-3 px-3 font-medium">R@10%</th>
+              <th className="text-right py-3 px-3 font-medium">R@20%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rq3Data.policies.map((policy) => {
+              const highlight = policy.name === 'SCLNScore';
+              return (
+                <tr
+                  key={policy.name}
+                  className="border-b border-line last:border-0"
+                  style={highlight ? { backgroundColor: 'rgba(15,108,120,0.07)' } : undefined}
+                >
+                  <td className="py-3 px-3">
+                    <span className={highlight ? 'text-teal font-semibold' : 'text-ink/80'}>
+                      {policy.name}
+                    </span>
+                  </td>
+                  <td className="text-right py-3 px-3 text-ink font-mono">
+                    {SHOW_NUMBERS ? policy.auprc.toFixed(2) : PH}
+                  </td>
+                  <td className="text-right py-3 px-3 text-ink font-mono">
+                    {SHOW_NUMBERS ? `${(policy.recallAt1 * 100).toFixed(1)}%` : PH}
+                  </td>
+                  <td className="text-right py-3 px-3 text-ink font-mono">
+                    {SHOW_NUMBERS ? `${(policy.recallAt5 * 100).toFixed(1)}%` : PH}
+                  </td>
+                  <td className="text-right py-3 px-3 text-ink font-mono">
+                    {SHOW_NUMBERS ? `${(policy.recallAt10 * 100).toFixed(1)}%` : PH}
+                  </td>
+                  <td className="text-right py-3 px-3 text-ink font-mono">
+                    {SHOW_NUMBERS ? `${(policy.recallAt20 * 100).toFixed(1)}%` : PH}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <Answer color={COND.human_only} text={rq3Data.answer} />
+    </div>
+  );
+}
+
+function RQ4Panel() {
+  const maxDrop = Math.max(...rq4Data.ablation.groups.map((g) => g.drop));
+  return (
+    <div>
+      <PanelHeading title={rq4Data.title} question={rq4Data.question} />
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-xs uppercase tracking-wide text-muted">
+          AUPRC drop when removing each feature group
+        </h4>
+        <span className="text-xs text-muted">
+          Full model AUPRC:{' '}
+          <span className="text-ink font-mono">
+            {SHOW_NUMBERS ? rq4Data.ablation.full.toFixed(2) : PH}
+          </span>
+        </span>
+      </div>
+      <div className="space-y-4">
+        {rq4Data.ablation.groups.map((g) => (
+          <div key={g.name}>
+            <div className="flex justify-between text-sm mb-1.5">
+              <span className="text-muted">{g.name}</span>
+              <span className="text-ink font-medium font-mono">
+                {SHOW_NUMBERS ? (
+                  <>
+                    −{g.drop.toFixed(2)}{' '}
+                    <span className="text-muted">(AUPRC {g.auprc.toFixed(2)})</span>
+                  </>
+                ) : (
+                  <>
+                    −{PH} <span className="text-muted">(AUPRC {PH})</span>
+                  </>
+                )}
+              </span>
+            </div>
+            <div className="h-3.5 rounded-full bg-ink/[0.06] overflow-hidden">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: SHOW_NUMBERS ? `${(g.drop / maxDrop) * 100}%` : '42%',
+                  backgroundColor: SHOW_NUMBERS ? NEG : SKELETON,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      <Answer color={COND.ai_assisted} text={rq4Data.answer} />
+    </div>
+  );
+}
+
+function RQ5Panel() {
+  return (
+    <div>
+      <PanelHeading title={rq5Data.title} question={rq5Data.question} />
+      <h4 className="text-xs uppercase tracking-wide text-muted mb-4">
+        Cross-dataset transfer AUPRC
+      </h4>
+      <div className="space-y-4">
+        {rq5Data.transferResults.map((result) => (
+          <MeterRow
+            key={`${result.source}-${result.target}`}
+            label={`${result.source} → ${result.target}`}
+            display={result.auprc.toFixed(2)}
+            pct={result.auprc * 100}
+            color={COND.ai_assisted}
+          />
+        ))}
+      </div>
+      <Answer color={COND.human_only} text={rq5Data.answer} />
+    </div>
+  );
+}
+
+function ResourcesSection() {
+  return (
+    <section id="resources" className="py-24 scroll-mt-20 bg-white/45 border-t border-line">
+      <div className="max-w-5xl mx-auto px-5">
+        <SectionHeader eyebrow="Resources" title="Use the benchmark">
+          The dataset, traces, and documentation needed to reproduce and build on AILA-Bench.
+        </SectionHeader>
+
+        <div className="grid md:grid-cols-2 gap-5">
+          <a href="#" className="card p-6 group hover:-translate-y-0.5 hover:shadow-lift transition-all">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="inline-flex p-2.5 rounded-full bg-teal-tint text-teal">
+                <Database className="w-5 h-5" />
+              </span>
+              <span className="font-serif text-lg text-ink group-hover:text-accent transition-colors">
+                Dataset
+              </span>
+            </div>
+            <p className="text-sm text-muted leading-relaxed">
+              The benchmark dataset with interaction traces, AI suggestions, and gold annotations.
+            </p>
+          </a>
+          <a href="#" className="card p-6 group hover:-translate-y-0.5 hover:shadow-lift transition-all">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="inline-flex p-2.5 rounded-full bg-accent-tint text-accent">
+                <BookOpen className="w-5 h-5" />
+              </span>
+              <span className="font-serif text-lg text-ink group-hover:text-accent transition-colors">
+                Documentation
+              </span>
+            </div>
+            <p className="text-sm text-muted leading-relaxed">
+              How to load the data, compute SCLNScore, and reproduce each research question.
+            </p>
+          </a>
+        </div>
+
+        <div className="mt-5 card p-6 md:p-7">
+          <h3 className="font-serif text-lg text-ink mb-5">License &amp; ethics</h3>
+          <div className="grid md:grid-cols-2 gap-7 text-sm text-muted">
+            <div>
+              <p className="text-ink font-medium mb-1.5">Data license</p>
+              <p className="leading-relaxed">
+                MIT License for code, CC-BY-4.0 for data. BDD100K images retain their original
+                license.
+              </p>
+            </div>
+            <div>
+              <p className="text-ink font-medium mb-1.5">Ethics</p>
+              <p className="leading-relaxed">
+                IRB approved. Annotators compensated above minimum wage. All data anonymized.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="py-10 border-t border-line">
+      <div className="max-w-6xl mx-auto px-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2 h-2 rounded-full bg-accent" />
+          <span className="text-sm font-medium text-ink">AILA-Bench</span>
+        </div>
+        <p className="text-muted text-sm text-center">
+          Suggestion-Conditioned Label Noise · Anonymous Authors
+        </p>
+      </div>
+    </footer>
+  );
+}
+
+function App() {
+  return (
+    <div className="min-h-screen">
+      <PlaceholderBanner />
+      <Navigation />
+      <main>
+        <Hero />
+        <OverviewSection />
+        <EvaluationFramework />
+        <DemoViewer />
+        <CaseGallery />
+        <ResultsExplorer />
+        <ResourcesSection />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+export default App;

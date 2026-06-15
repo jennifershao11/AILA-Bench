@@ -1,0 +1,46 @@
+database_url: sqlite:///./aila_bench.db
+pilot_size: 300
+random_seed: 42
+
+paths:
+  image_root: data/bdd100k_prepared/bdd100k_images_100k/100k/train
+  artifact_dir: outputs
+
+classes:
+  - car
+  - pedestrian
+  - rider
+  - bus
+  - truck
+  - motorcycle
+  - traffic light
+  - traffic sign
+
+conditions:
+  - human_only
+  - ai_assisted
+  - ai_assisted_confidence
+
+budgets:
+  - 0.01
+  - 0.05
+  - 0.10
+  - 0.20
+
+matching:
+  iou_threshold: 0.5
+  duplicate_iou_threshold: 0.75
+
+model:
+  logistic_regression:
+    max_iter: 1000
+  xgboost:
+    enabled: false
+    note: "Install xgboost and enable this for the main paper model."
+
+external_models:
+  yolo:
+    model: yolo11n.pt
+    confidence_threshold: 0.25
+  grounding_dino:
+    enabled: false
