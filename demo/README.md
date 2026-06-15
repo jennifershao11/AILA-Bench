@@ -40,8 +40,10 @@ The repo includes `.github/workflows/deploy-demo.yml`.
 After pushing to GitHub:
 
 1. Repo → **Settings** → **Pages**
-2. **Build and deployment** → Source: **GitHub Actions**
-3. Push to `main` (or `master`) — workflow builds `demo/` and deploys
+2. **Build and deployment** → Source: **GitHub Actions** (not “Deploy from a branch”)
+3. Push to `main` — workflow builds `demo/` and deploys
+
+If **build** succeeds but **deploy** fails, check that step 2 is set to GitHub Actions, then re-run the workflow from the Actions tab.
 
 Live URL: `https://<username>.github.io/<repo-name>/`
 
