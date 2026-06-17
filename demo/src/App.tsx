@@ -8,7 +8,7 @@ import {
   Timer,
   Zap,
 } from 'lucide-react';
-import { cases, decisionLabel, formatReviewTime, humanReviewAvailable, type AIErrorType, type AnnotationCase } from './data/cases';
+import { cases, decisionLabel, humanReviewAvailable, type AIErrorType, type AnnotationCase } from './data/cases';
 import { demoScene, classColor, boxStyleTokens } from './data/demoScene';
 import { findings } from './data/findings';
 import {
@@ -704,14 +704,6 @@ function CaseGallery() {
                         <span className="text-ink font-mono">
                           {hr.aiFinalIou != null ? hr.aiFinalIou.toFixed(2) : '—'}
                         </span>
-                      </div>
-                      <div>
-                        <span className="text-muted">Review time</span>{' '}
-                        <span className="text-ink font-mono">{formatReviewTime(hr.reviewTimeMs)}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted">Task</span>{' '}
-                        <span className="text-ink font-mono">{hr.taskId}</span>
                       </div>
                     </div>
                   </>
