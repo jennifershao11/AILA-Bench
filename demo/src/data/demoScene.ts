@@ -1,4 +1,5 @@
 // Real demo scene: a BDD100K frame with its actual YOLO11 pre-annotations.
+import { publicPath } from '../publicPath';
 // Boxes and confidences are the real model outputs from
 // outputs/bdd100k/yolo11_predictions.jsonl (image_external_id 0000f77c-6257be58).
 // Unlike the placeholder metrics, these are genuine AI suggestions.
@@ -14,7 +15,7 @@ export interface SceneBox {
 export const demoScene = {
   source: 'BDD100K',
   externalId: '0000f77c-6257be58',
-  imagePath: '/demo-assets/0000f77c-6257be58.jpg',
+  imagePath: publicPath('demo-assets/0000f77c-6257be58.jpg'),
   width: 1280,
   height: 720,
   model: 'YOLO11',

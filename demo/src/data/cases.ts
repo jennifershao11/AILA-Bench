@@ -9,6 +9,7 @@
 // real ai_assisted / ai_assisted_confidence annotation and are shown as "pending" in the UI.
 
 import manifest from './cases_manifest.json';
+import { publicPath } from '../publicPath';
 
 export type AIErrorType =
   | 'class'
@@ -83,7 +84,7 @@ function build(entry: ManifestEntry): AnnotationCase {
     id: entry.id,
     title: c.title,
     description: c.description,
-    imagePath: `/cases/${entry.image.file}`,
+    imagePath: publicPath(`cases/${entry.image.file}`),
     externalId: entry.image.externalId,
     width: entry.image.width,
     height: entry.image.height,
