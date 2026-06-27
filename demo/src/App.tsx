@@ -574,7 +574,9 @@ function CaseGallery() {
         <SectionHeader eyebrow="Case gallery" title="Anatomy of suggestion-conditioned errors">
           Real BDD100K frames with{' '}
           <strong className="font-semibold text-ink">ground truth, YOLOv8 nano suggestions, and human
-          final labels</strong> from our annotation study submissions.
+          final labels</strong> from our annotation study submissions. Each case highlights{' '}
+          <strong className="font-semibold text-ink">one focal object</strong> for clarity—not the
+          full set of boxes on the image.
         </SectionHeader>
 
         <div className="grid lg:grid-cols-3 gap-6 items-start">
@@ -616,7 +618,7 @@ function CaseGallery() {
                 object was missed by the detector (missing detection).
               </p>
             )}
-            <div className="flex flex-wrap items-center gap-4 mt-3 mb-5 text-xs">
+            <div className="flex flex-wrap items-center gap-4 mt-3 text-xs">
               {gt && (
                 <span className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: GT_COLOR }} />
@@ -639,6 +641,11 @@ function CaseGallery() {
                 </span>
               )}
             </div>
+            <p className="text-[11px] text-muted/90 mb-5 leading-relaxed">
+              Display note: boxes shown are the focal pair for this error type only. Annotators worked
+              on the full frame with all objects; other GT, AI, and final boxes are omitted here for
+              readability.
+            </p>
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="rounded-xl bg-white/70 border border-line p-4">
