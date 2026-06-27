@@ -27,7 +27,7 @@ export const rq1Data = {
   title: 'RQ1: Error Modes',
   question: 'Do AI-assisted annotation errors differ from Human-only errors?',
   pilotNote:
-    'BDD100K pilot (Table tab:rq1a). Review time is not reported — the current export contains no observed positive review_time_ms values.',
+    'BDD100K pilot (Table tab:rq1a). Task-level review_time_ms is logged in interaction traces; it is omitted from this summary table.',
   answer:
     'Overall FDER is similar across conditions (**32.9%** AI-assisted vs **31.5%** human-only), but the **error mix shifts**: AI-assisted labels carry far more **bbox errors (13.9% vs 3.9%)** and fewer **misses (0.3% vs 11.6%)**; false-positive rates stay near **10–12%**.',
   overallFder: {
@@ -329,6 +329,7 @@ export const benchmarkStats = {
   numClasses: 8,
   traceFields: [
     'action_type',
+    'review_time_ms',
     'bbox_edit_distance',
     'ai_final_iou',
     'ai_confidence',
