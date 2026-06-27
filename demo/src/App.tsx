@@ -514,7 +514,7 @@ function caseGalleryBoxes(c: AnnotationCase, withLabels = true) {
       color: AI_FOCUS_COLOR,
       label: withLabels ? `AI: ${c.focus.ai.class}${pct}` : 'AI',
       zIndex: 10,
-      labelPosition: 'bottom',
+      labelPosition: c.id === 'case-3' ? 'top' : 'bottom',
     });
   }
   if (c.focus.gt) {
