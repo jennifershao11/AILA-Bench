@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  AlertCircle,
   ArrowRight,
   BarChart3,
   Eye,
@@ -32,7 +31,7 @@ const COND = {
 const POS = '#0f6c78';
 const NEG = '#b23a48';
 
-// RQ1–RQ3 & RQ5 use measured results; RQ4 remains placeholder until ablation runs.
+// All RQ panels use measured results from the benchmark study and paper appendix.
 const PH = 'xxx';
 const SKELETON = '#c9c4ba';
 
@@ -77,17 +76,7 @@ function SectionHeader({
 }
 
 function PlaceholderBanner() {
-  if (!rq4Data.placeholder) {
-    return null;
-  }
-  return (
-    <div className="bg-accent-tint text-accent text-center py-2 text-[13px] font-medium border-b border-line">
-      <AlertCircle className="inline w-3.5 h-3.5 mr-2 -mt-0.5" />
-      RQ1–RQ3 and RQ5 show measured results ({studyStats.totalLabels.toLocaleString('en-US')} BDD
-      labels; nuImages transfer on {rq5Data.nuImagesImages.toLocaleString('en-US')} images). RQ4
-      ablation metrics are still placeholders.
-    </div>
-  );
+  return null;
 }
 
 function Navigation() {
@@ -806,9 +795,9 @@ function ResultsExplorer() {
     <section id="results" className="py-24 scroll-mt-20">
       <div className="max-w-6xl mx-auto px-5">
         <SectionHeader eyebrow="Results" title="Five research questions">
-          RQ1–RQ3 report measured results on {studyStats.totalLabels.toLocaleString('en-US')} final
-          BDD labels; RQ5 reports BDD→nuImages transfer on{' '}
-          {rq5Data.nuImagesImages.toLocaleString('en-US')} images. RQ4 (ablation) is still pending.
+          RQ1–RQ5 report measured results on {studyStats.totalLabels.toLocaleString('en-US')} final
+          BDD labels (RQ4 ablation on {rq4Data.testLabels.toLocaleString('en-US')} held-out test
+          labels; RQ5 transfer on {rq5Data.nuImagesImages.toLocaleString('en-US')} nuImages).
         </SectionHeader>
 
         <div className="flex flex-wrap gap-2 mb-8 justify-center">
@@ -1123,44 +1112,99 @@ function RQ3Panel() {
 
 function RQ4Panel() {
   const live = showLive(rq4Data.placeholder);
-  const maxDrop = Math.max(...rq4Data.ablation.groups.map((g) => g.drop));
+  const drops = [...rq4Data.groups].sort((a, b) => b.auprcDrop - a.auprcDrop);
+  const maxDrop = Math.max(...drops.map((g) => g.auprcDrop));
+
   return (
     <div>
       <PanelHeading title={rq4Data.title} question={rq4Data.question} />
-      <div className="flex items-center justify-between mb-4">
-        <h4 className="text-xs uppercase tracking-wide text-muted">
-          AUPRC drop when removing each feature group
-        </h4>
-        <span className="text-xs text-muted">
-          Full model AUPRC:{' '}
-          <span className="text-ink font-mono">
-            {live ? rq4Data.ablation.full.toFixed(2) : PH}
-          </span>
-        </span>
+      <p className="text-sm text-muted mb-6 leading-relaxed">
+        Class-balanced logistic regression on {rq4Data.featureCount} features in five groups (AI,
+        Trace, Object, Scene, Interface+Time), trained on {rq4Data.labels.toLocaleString('en-US')}{' '}
+        final labels with image-level train/test split. Test set:{' '}
+        {rq4Data.testLabels.toLocaleString('en-US')} labels, error rate{' '}
+        {rq4Data.testErrorRate}% (random AUPRC baseline).
+      </p>
+
+      <div className="grid sm:grid-cols-3 gap-4 mb-8">
+        <div className="rounded-xl bg-white/70 border border-line p-4">
+          <p className="text-xs uppercase tracking-wide text-muted mb-1">Full model</p>
+          <p className="text-ink font-mono text-lg">
+            {live ? (
+              <>
+                AUPRC {rq4Data.fullModel.auprc.toFixed(3)}{' '}
+                <span className="text-sm text-muted">· AUROC {rq4Data.fullModel.auroc.toFixed(3)}</span>
+              </>
+            ) : (
+              PH
+            )}
+          </p>
+        </div>
+        <div className="rounded-xl bg-white/70 border border-line p-4">
+          <p className="text-xs uppercase tracking-wide text-muted mb-1">Random baseline</p>
+          <p className="text-ink font-mono text-lg">
+            {live ? `AUPRC ${rq4Data.randomAuprcBaseline.toFixed(3)}` : PH}
+          </p>
+        </div>
+        <div className="rounded-xl bg-white/70 border border-line p-4">
+          <p className="text-xs uppercase tracking-wide text-muted mb-1">Strongest group alone</p>
+          <p className="text-ink font-mono text-lg">
+            {live ? `Object AUPRC ${rq4Data.groups[0].auprc.toFixed(3)}` : PH}
+          </p>
+        </div>
       </div>
-      <div className="space-y-4">
-        {rq4Data.ablation.groups.map((g) => (
+
+      <h4 className="text-xs uppercase tracking-wide text-muted mb-3">
+        Feature-group ablation (group-only models)
+      </h4>
+      <div className="overflow-x-auto mb-8">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b border-line text-left text-muted text-xs uppercase tracking-wide">
+              <th className="py-2 pr-4 font-medium">Group</th>
+              <th className="py-2 pr-4 font-medium">#Feat.</th>
+              <th className="py-2 pr-4 font-medium">AUROC</th>
+              <th className="py-2 pr-4 font-medium">AUPRC</th>
+              <th className="py-2 pr-4 font-medium">P@1%</th>
+              <th className="py-2 pr-4 font-medium">R@10%</th>
+              <th className="py-2 font-medium">ΔAUPRC</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rq4Data.groups.map((g) => (
+              <tr key={g.name} className="border-b border-line/60">
+                <td className="py-2.5 pr-4 text-ink font-medium">{g.name}</td>
+                <td className="py-2.5 pr-4 font-mono text-muted">{g.featureCount}</td>
+                <td className="py-2.5 pr-4 font-mono">{live ? g.auroc.toFixed(3) : PH}</td>
+                <td className="py-2.5 pr-4 font-mono">{live ? g.auprc.toFixed(3) : PH}</td>
+                <td className="py-2.5 pr-4 font-mono">{live ? g.precisionAt1.toFixed(3) : PH}</td>
+                <td className="py-2.5 pr-4 font-mono">{live ? g.recallAt10.toFixed(3) : PH}</td>
+                <td className="py-2.5 font-mono" style={{ color: NEG }}>
+                  {live ? g.auprcDrop.toFixed(3) : PH}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h4 className="text-xs uppercase tracking-wide text-muted mb-4">
+        AUPRC drop when removing each group from the full model
+      </h4>
+      <div className="space-y-4 mb-8">
+        {drops.map((g) => (
           <div key={g.name}>
             <div className="flex justify-between text-sm mb-1.5">
-              <span className="text-muted">{g.name}</span>
+              <span className="text-muted">w/o {g.name}</span>
               <span className="text-ink font-medium font-mono">
-                {live ? (
-                  <>
-                    −{g.drop.toFixed(2)}{' '}
-                    <span className="text-muted">(AUPRC {g.auprc.toFixed(2)})</span>
-                  </>
-                ) : (
-                  <>
-                    −{PH} <span className="text-muted">(AUPRC {PH})</span>
-                  </>
-                )}
+                {live ? `−${g.auprcDrop.toFixed(3)} AUPRC` : PH}
               </span>
             </div>
             <div className="h-3.5 rounded-full bg-ink/[0.06] overflow-hidden">
               <div
                 className="h-full rounded-full"
                 style={{
-                  width: live ? `${(g.drop / maxDrop) * 100}%` : '42%',
+                  width: live ? `${(g.auprcDrop / maxDrop) * 100}%` : '42%',
                   backgroundColor: live ? NEG : SKELETON,
                 }}
               />
@@ -1168,6 +1212,59 @@ function RQ4Panel() {
           </div>
         ))}
       </div>
+
+      <h4 className="text-xs uppercase tracking-wide text-muted mb-3">Top single-feature predictors</h4>
+      <div className="overflow-x-auto mb-8">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b border-line text-left text-muted text-xs uppercase tracking-wide">
+              <th className="py-2 pr-4 font-medium">Feature</th>
+              <th className="py-2 pr-4 font-medium">Group</th>
+              <th className="py-2 pr-4 font-medium">AUROC</th>
+              <th className="py-2 pr-4 font-medium">AUPRC</th>
+              <th className="py-2 font-medium">Lift</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rq4Data.topFeatures.map((f) => (
+              <tr key={f.name} className="border-b border-line/60">
+                <td className="py-2.5 pr-4 font-mono text-xs text-ink">{f.name}</td>
+                <td className="py-2.5 pr-4 text-muted">{f.group}</td>
+                <td className="py-2.5 pr-4 font-mono">{live ? f.auroc.toFixed(3) : PH}</td>
+                <td className="py-2.5 pr-4 font-mono">{live ? f.auprc.toFixed(3) : PH}</td>
+                <td className="py-2.5 font-mono">{live ? f.lift.toFixed(3) : PH}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h4 className="text-xs uppercase tracking-wide text-muted mb-3">
+        Trace feature means by condition
+      </h4>
+      <div className="overflow-x-auto mb-2">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b border-line text-left text-muted text-xs uppercase tracking-wide">
+              <th className="py-2 pr-4 font-medium">Trace feature</th>
+              <th className="py-2 pr-4 font-medium">Human-only</th>
+              <th className="py-2 pr-4 font-medium">AI-assisted</th>
+              <th className="py-2 font-medium">AI+conf</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rq4Data.traceMeans.map((row) => (
+              <tr key={row.feature} className="border-b border-line/60">
+                <td className="py-2.5 pr-4 font-mono text-xs text-ink">{row.feature}</td>
+                <td className="py-2.5 pr-4 font-mono">{live ? row.humanOnly.toFixed(2) : PH}</td>
+                <td className="py-2.5 pr-4 font-mono">{live ? row.aiAssisted.toFixed(2) : PH}</td>
+                <td className="py-2.5 font-mono">{live ? row.aiConf.toFixed(2) : PH}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       <Answer color={COND.ai_assisted} text={rq4Data.answer} />
     </div>
   );
